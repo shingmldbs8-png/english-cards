@@ -110,6 +110,7 @@ const ICON = {
   starOn:'<svg class="i" viewBox="0 0 24 24" style="fill:currentColor"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/></svg>',
   check: '<svg class="i" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg>',
   chat:  '<svg class="i" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>',
+  copy:  '<svg class="i" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h9"/></svg>',
   mic:   '<svg class="i" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
   send:  '<svg class="i" viewBox="0 0 24 24"><path d="M4 12 20 4l-6 16-3-7z"/></svg>'
 };
@@ -128,6 +129,7 @@ function actionsHtml(c) {
     '<button type="button" class="btn ' + (m.star ? "on-star" : "") + '" data-act="star" data-id="' + c.id + '">' + (m.star ? ICON.starOn : ICON.star) + "즐겨찾기</button>" +
     '<button type="button" class="btn ' + (m.known ? "on-known" : "") + '" data-act="known" data-id="' + c.id + '">' + ICON.check + (m.known ? "외웠어요" : "외웠어요?") + "</button>" +
     '<button type="button" class="btn" data-act="chat" data-id="' + c.id + '">' + ICON.chat + "대화 연습</button>" +
+    '<button type="button" class="btn" data-act="claudeapp" data-id="' + c.id + '">' + ICON.copy + "Claude 앱에서 연습</button>" +
     "</div>";
 }
 function exHtml(c) {
@@ -387,6 +389,33 @@ function errText(err) {
   if (!navigator.onLine) return "인터넷 연결을 확인해 주세요.";
   return "답을 받지 못했어요. 다시 보내 주세요.";
 }
+// API 키 없이: 연습용 문장을 복사하고 Claude 앱(claude.ai)을 엶 → 프로 구독으로 추가 요금 없음
+function practicePrompt(c) {
+  const kind = c.c === "word" ? "단어" : c.c === "grammar" ? "문법" : "표현";
+  const eun = kind === "단어" ? "는" : "은", eul = kind === "단어" ? "를" : "을";
+  return "영어 회화 연습 상대가 되어 줘. 오늘의 " + kind + eun + " \"" + c.en + "\"(" + c.ko + ")이야.\n" +
+    "예문: " + c.ex + "\n" +
+    "이걸 쓸 만한 짧은 일상 상황극을 영어로 시작해 줘. 한 번에 1~3문장만 말하고, 내가 답할 수 있게 질문으로 끝내 줘.\n" +
+    "내가 영어로 답하면, 대화를 이어 가면서 아래에 한국어로 짧게 피드백해 줘. 틀린 문장은 고친 문장과 이유를, 오늘 " + kind + eul + " 자연스럽게 썼는지도 알려 줘.";
+}
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch (e) {}
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.style.position = "absolute"; ta.style.left = "-9999px";
+    document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand("copy");
+    ta.remove();
+    return ok;
+  } catch (e) { return false; }
+}
+async function openClaudeApp(c) {
+  const text = practicePrompt(c);
+  const ok = await copyText(text);
+  toast(ok ? "연습 문장을 복사했어요. Claude에 붙여 넣으세요" : "복사가 안 됐어요. Claude에서 직접 입력해 주세요");
+  window.open("https://claude.ai/new?q=" + encodeURIComponent(text), "_blank", "noopener");
+}
+
 function openChat(id) { if (tab !== "chat") backTab = tab; chatId = id; chatErr = ""; show("chat"); }
 async function sendChat(text) {
   const c = BY_ID[chatId];
@@ -414,7 +443,9 @@ function renderChat() {
   const last = msgs[msgs.length - 1];
   let h = '<div class="target"><span class="badge b-' + c.c + '">' + CATS[c.c].name + "</span><b style=\"margin-top:6px\">" + esc(c.en) + "</b>" + esc(c.ko) + "</div>";
   if (!state.settings.apiKey) {
-    h += '<div class="card"><p style="margin:0 0 12px;line-height:1.6">AI 대화를 쓰려면 설정에서 Claude API 키를 먼저 넣어 주세요.</p><button type="button" class="btn" data-tab="settings">설정으로 가기</button></div>';
+    h += '<div class="card"><p style="margin:0 0 12px;line-height:1.6">이 화면에서 대화하려면 설정에서 Claude API 키를 넣어야 해요(요금 별도).<br>키 없이 하려면 Claude 앱에서 연습하세요. 프로 구독이면 추가 요금이 없어요.</p>' +
+      '<div class="actions"><button type="button" class="btn" data-act="claudeapp" data-id="' + c.id + '">' + ICON.copy + 'Claude 앱에서 연습</button>' +
+      '<button type="button" class="btn" data-tab="settings">설정으로 가기</button></div></div>';
     $("#view-chat").innerHTML = h + '<button type="button" class="btn" data-act="chatback">← 돌아가기</button>';
     return;
   }
@@ -512,6 +543,7 @@ document.addEventListener("click", e => {
   if (!c) return;
   if (act === "speak") { speak(a.dataset.which === "ex" ? c.ex : c.en); return; }
   if (act === "chat") { openChat(id); return; }
+  if (act === "claudeapp") { openClaudeApp(c); return; }
   const m = state.marks[id] || (state.marks[id] = {});
   if (act === "star") { m.star = !m.star; toast(m.star ? "즐겨찾기에 담았어요" : "즐겨찾기에서 뺐어요"); }
   if (act === "known") { m.known = !m.known; toast(m.known ? "외운 카드로 표시했어요" : "외움 표시를 풀었어요"); }
