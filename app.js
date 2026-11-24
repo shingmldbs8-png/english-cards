@@ -244,10 +244,21 @@ function renderSettings() {
     '</div><p class="meta" style="margin:-6px 4px 0">개수를 바꾸면 내일 카드부터 적용돼요.</p>' +
     '<h2 class="sec">주제별 진도</h2><div class="set">' + prog + "</div>" +
     '<p class="meta" style="margin:-6px 4px 0">한 주제를 다 보면 그 주제만 다음 회차로 다시 시작해요. 회차 안에서는 같은 카드가 나오지 않아요.</p>' +
-    '<h2 class="sec">매일 알림</h2><div class="set">' +
-    '<div class="set-row"><div>알림 시간<small>폰 캘린더에 매일 반복 알림을 추가해요</small></div><input type="time" id="s-time" value="' + (s.remind || "08:00") + '" style="padding:8px;border-radius:10px;border:1px solid var(--border);background:var(--surface2)"></div>' +
-    '<div class="set-row"><div>캘린더에 알림 추가<small>받은 파일을 열고 캘린더에 추가를 눌러 주세요. 아이폰, 안드로이드 모두 돼요</small></div><button type="button" class="btn" id="b-ics">추가하기</button></div>' +
-    '<div class="set-row"><div>앱 알림 켜기<small>안드로이드 크롬에서 홈 화면에 설치한 경우, 알림 시간이 지나도 공부를 안 했으면 알려 줘요</small></div><button type="button" class="btn" id="b-notify">켜기</button></div>' +
+    '<h2 class="sec">매일 알림 (미리알림)</h2><div class="set">' +
+    '<div class="set-row"><div>미리알림에 추가<small>알림 제목과 앱 주소를 복사하고 미리알림 앱을 열어요</small></div><button type="button" class="btn" id="b-rem">복사하고 열기</button></div>' +
+    '<div class="set-row" style="display:block;font-size:14px;line-height:1.7;color:var(--text2)">' +
+      '<b style="color:var(--text)">미리알림에서 한 번만 설정하세요</b><br>' +
+      '1. 새로운 미리알림을 만들고 제목 칸에 붙여 넣기<br>' +
+      '2. 오른쪽 ⓘ 를 눌러 <b>날짜</b>와 <b>시간</b>을 켜고 원하는 시간 고르기<br>' +
+      '3. <b>반복</b>을 <b>매일</b>로 바꾸기<br>' +
+      '4. <b>URL</b> 칸에 앱 주소 붙여 넣기 (제목에서 주소 부분만 잘라 옮기면 돼요)<br>' +
+      '5. 완료를 누르면 매일 그 시간에 알림이 오고, 알림을 눌러 바로 앱을 열 수 있어요' +
+    "</div>" +
+    "</div>" +
+    '<h2 class="sec">다른 알림 방법</h2><div class="set">' +
+    '<div class="set-row"><div>알림 시간<small>캘린더 알림과 앱 알림에 쓰여요</small></div><input type="time" id="s-time" value="' + (s.remind || "08:00") + '" style="padding:8px;border-radius:10px;border:1px solid var(--border);background:var(--surface2)"></div>' +
+    '<div class="set-row"><div>캘린더에 알림 추가<small>받은 파일을 열고 캘린더에 추가를 눌러 주세요</small></div><button type="button" class="btn" id="b-ics">추가하기</button></div>' +
+    '<div class="set-row"><div>앱 알림 켜기<small>안드로이드 크롬에 설치한 경우만 돼요</small></div><button type="button" class="btn" id="b-notify">켜기</button></div>' +
     "</div>" +
     '<h2 class="sec">AI 대화 연습</h2><div class="set">' +
     '<div class="set-row" style="display:block"><div>Claude API 키<small>console.anthropic.com에서 직접 발급한 키를 넣어 주세요. 이 기기에만 저장되고 백업 파일에는 들어가지 않아요. 대화할 때마다 요금이 들어요.</small></div>' +
@@ -267,6 +278,13 @@ function renderSettings() {
   $("#s-word").onchange = e => { s.word = +e.target.value; save(); toast("내일부터 단어 " + s.word + "개"); };
   $("#s-rate").onchange = e => { s.rate = +e.target.value; save(); };
   $("#s-time").onchange = e => { s.remind = e.target.value; save(); writeMeta(); };
+  $("#b-rem").onclick = async () => {
+    const appUrl = location.origin + location.pathname;
+    const ok = await copyText("오늘의 영어 공부하기 " + appUrl);
+    toast(ok ? "복사했어요. 미리알림 제목 칸에 붙여 넣으세요" : "복사가 안 됐어요. 직접 입력해 주세요");
+    // 아이폰 미리알림 앱 열기 (다른 기기에서는 아무 일도 일어나지 않음)
+    setTimeout(() => { location.href = "x-apple-reminderkit://"; }, 600);
+  };
   $("#s-key").onchange = e => { s.apiKey = e.target.value.trim(); save(); toast(s.apiKey ? "API 키를 저장했어요" : "API 키를 지웠어요"); };
   $("#s-model").onchange = e => { s.model = e.target.value; save(); };
   $("#s-auto").onchange = e => { s.autoSpeak = e.target.value === "1"; save(); };

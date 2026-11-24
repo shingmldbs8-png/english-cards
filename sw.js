@@ -1,5 +1,5 @@
 // 카드 데이터나 화면을 고치면 아래 버전 숫자를 올려 주세요.
-const CACHE = "engcards-v3";
+const CACHE = "engcards-v4";
 const META = "engcards-meta";
 const ASSETS = ["./", "./index.html", "./app.js", "./data.js", "./manifest.webmanifest", "./icon.svg", "./icon-192.png", "./icon-512.png"];
 
