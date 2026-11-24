@@ -245,15 +245,17 @@ function renderSettings() {
     '<h2 class="sec">주제별 진도</h2><div class="set">' + prog + "</div>" +
     '<p class="meta" style="margin:-6px 4px 0">한 주제를 다 보면 그 주제만 다음 회차로 다시 시작해요. 회차 안에서는 같은 카드가 나오지 않아요.</p>' +
     '<h2 class="sec">매일 알림 (미리알림)</h2><div class="set">' +
-    '<div class="set-row"><div>미리알림에 추가<small>알림 제목과 앱 주소를 복사하고 미리알림 앱을 열어요</small></div><button type="button" class="btn" id="b-rem">복사하고 열기</button></div>' +
+    '<div class="set-row"><div>미리알림으로 보내기<small>공유 창이 열리면 미리알림을 골라 주세요</small></div><button type="button" class="btn" id="b-rem">보내기</button></div>' +
     '<div class="set-row" style="display:block;font-size:14px;line-height:1.7;color:var(--text2)">' +
-      '<b style="color:var(--text)">미리알림에서 한 번만 설정하세요</b><br>' +
-      '1. 새로운 미리알림을 만들고 제목 칸에 붙여 넣기<br>' +
-      '2. 오른쪽 ⓘ 를 눌러 <b>날짜</b>와 <b>시간</b>을 켜고 원하는 시간 고르기<br>' +
-      '3. <b>반복</b>을 <b>매일</b>로 바꾸기<br>' +
-      '4. <b>URL</b> 칸에 앱 주소 붙여 넣기 (제목에서 주소 부분만 잘라 옮기면 돼요)<br>' +
-      '5. 완료를 누르면 매일 그 시간에 알림이 오고, 알림을 눌러 바로 앱을 열 수 있어요' +
+      '<b style="color:var(--text)">한 번만 설정하면 매일 알려 줘요</b><br>' +
+      '1. 위 <b>보내기</b>를 누르고, 공유 창에서 <b>미리알림</b>을 고르기 (안 보이면 앱 줄 맨 오른쪽 <b>더 보기</b>)<br>' +
+      '2. 목록을 고르고 <b>추가</b> 누르기<br>' +
+      '3. 미리알림 앱에서 방금 생긴 항목의 <b>ⓘ</b> 를 눌러 <b>날짜</b>와 <b>시간</b> 켜기<br>' +
+      '4. <b>반복</b>을 <b>매일</b>로 바꾸고 완료<br>' +
+      '알림에 붙은 링크를 누르면 영어 앱이 바로 열려요.' +
     "</div>" +
+    '<div class="set-row" style="display:block"><div>공유가 안 될 때<small>아래 글을 길게 눌러 복사한 뒤 미리알림에 직접 붙여 넣으세요</small></div>' +
+      '<input type="text" id="rem-text" class="keyinput" readonly value="' + esc("오늘의 영어 공부하기 " + location.origin + location.pathname) + '"></div>' +
     "</div>" +
     '<h2 class="sec">다른 알림 방법</h2><div class="set">' +
     '<div class="set-row"><div>알림 시간<small>캘린더 알림과 앱 알림에 쓰여요</small></div><input type="time" id="s-time" value="' + (s.remind || "08:00") + '" style="padding:8px;border-radius:10px;border:1px solid var(--border);background:var(--surface2)"></div>' +
@@ -278,13 +280,18 @@ function renderSettings() {
   $("#s-word").onchange = e => { s.word = +e.target.value; save(); toast("내일부터 단어 " + s.word + "개"); };
   $("#s-rate").onchange = e => { s.rate = +e.target.value; save(); };
   $("#s-time").onchange = e => { s.remind = e.target.value; save(); writeMeta(); };
-  $("#b-rem").onclick = async () => {
+  // 아이폰 공유 창 → 미리알림: 제목과 링크가 붙은 항목이 바로 만들어짐
+  $("#b-rem").onclick = () => {
     const appUrl = location.origin + location.pathname;
-    const ok = await copyText("오늘의 영어 공부하기 " + appUrl);
-    toast(ok ? "복사했어요. 미리알림 제목 칸에 붙여 넣으세요" : "복사가 안 됐어요. 직접 입력해 주세요");
-    // 아이폰 미리알림 앱 열기 (다른 기기에서는 아무 일도 일어나지 않음)
-    setTimeout(() => { location.href = "x-apple-reminderkit://"; }, 600);
+    if (navigator.share) {
+      navigator.share({ title: "오늘의 영어 공부하기", text: "오늘의 영어 공부하기", url: appUrl })
+        .catch(err => { if (err && err.name !== "AbortError") toast("공유 창을 열지 못했어요. 아래 글을 복사해 주세요"); });
+    } else {
+      copyText("오늘의 영어 공부하기 " + appUrl).then(ok =>
+        toast(ok ? "복사했어요. 미리알림에 붙여 넣으세요" : "아래 글을 길게 눌러 복사해 주세요"));
+    }
   };
+  $("#rem-text").addEventListener("focus", e => e.target.setSelectionRange(0, e.target.value.length));
   $("#s-key").onchange = e => { s.apiKey = e.target.value.trim(); save(); toast(s.apiKey ? "API 키를 저장했어요" : "API 키를 지웠어요"); };
   $("#s-model").onchange = e => { s.model = e.target.value; save(); };
   $("#s-auto").onchange = e => { s.autoSpeak = e.target.value === "1"; save(); };
@@ -416,22 +423,30 @@ function practicePrompt(c) {
     "이걸 쓸 만한 짧은 일상 상황극을 영어로 시작해 줘. 한 번에 1~3문장만 말하고, 내가 답할 수 있게 질문으로 끝내 줘.\n" +
     "내가 영어로 답하면, 대화를 이어 가면서 아래에 한국어로 짧게 피드백해 줘. 틀린 문장은 고친 문장과 이유를, 오늘 " + kind + eul + " 자연스럽게 썼는지도 알려 줘.";
 }
-async function copyText(text) {
-  try { await navigator.clipboard.writeText(text); return true; } catch (e) {}
+// 아이폰은 버튼을 누른 그 순간에만 복사를 허락하므로, 기다리지 말고 바로 복사를 시작함
+function copyLegacy(text) {
   try {
     const ta = document.createElement("textarea");
-    ta.value = text; ta.style.position = "absolute"; ta.style.left = "-9999px";
-    document.body.appendChild(ta); ta.select();
+    ta.value = text; ta.readOnly = true;
+    ta.style.position = "fixed"; ta.style.top = "0"; ta.style.opacity = "0"; ta.style.fontSize = "16px";
+    document.body.appendChild(ta);
+    ta.focus(); ta.select(); ta.setSelectionRange(0, text.length);
     const ok = document.execCommand("copy");
     ta.remove();
     return ok;
   } catch (e) { return false; }
 }
-async function openClaudeApp(c) {
+function copyText(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(text).then(() => true, () => copyLegacy(text));
+  }
+  return Promise.resolve(copyLegacy(text));
+}
+function openClaudeApp(c) {
   const text = practicePrompt(c);
-  const ok = await copyText(text);
-  toast(ok ? "연습 문장을 복사했어요. Claude에 붙여 넣으세요" : "복사가 안 됐어요. Claude에서 직접 입력해 주세요");
-  window.open("https://claude.ai/new?q=" + encodeURIComponent(text), "_blank", "noopener");
+  const copying = copyText(text);                       // 누른 순간 복사 시작
+  window.open("https://claude.ai/new?q=" + encodeURIComponent(text), "_blank", "noopener"); // 누른 순간 열기
+  copying.then(ok => toast(ok ? "연습 문장을 복사했어요. 입력 칸이 비어 있으면 붙여 넣으세요" : "복사가 안 됐어요. Claude에서 직접 입력해 주세요"));
 }
 
 function openChat(id) { if (tab !== "chat") backTab = tab; chatId = id; chatErr = ""; show("chat"); }
@@ -580,7 +595,13 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden && ta
 show("today");
 
 if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
-  navigator.serviceWorker.register("sw.js").catch(() => {});
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  // 새 버전이 설치되면 한 번 새로고침해서 바로 보여 줌 (처음 설치 때는 제외)
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (hadController && !reloaded) { reloaded = true; location.reload(); }
+  });
+  navigator.serviceWorker.register("sw.js").then(r => r.update()).catch(() => {});
 }
 
 // 테스트용 노출

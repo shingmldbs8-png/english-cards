@@ -1,10 +1,11 @@
 // 카드 데이터나 화면을 고치면 아래 버전 숫자를 올려 주세요.
-const CACHE = "engcards-v4";
+const CACHE = "engcards-v5";
 const META = "engcards-meta";
 const ASSETS = ["./", "./index.html", "./app.js", "./data.js", "./manifest.webmanifest", "./icon.svg", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  // 브라우저 캐시를 건너뛰고 서버의 새 파일을 받아 둠
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: "reload" })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", e => {
